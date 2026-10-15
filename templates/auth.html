@@ -1,0 +1,17 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SafeHer – Login</title>
+<style>:root{color-scheme:light dark}body{font:16px system-ui,sans-serif;max-width:380px;margin:40px auto;padding:0 16px}
+input,button{width:100%;box-sizing:border-box;padding:12px;margin:6px 0;font:inherit;border-radius:10px;border:1px solid #aaa}
+button{background:#d6291f;color:#fff;border:0;font-weight:700}a{color:#2b6cdf;cursor:pointer}#e{color:#d6291f}</style><link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#d6291f"><link rel="apple-touch-icon" href="/static/icon-192.png"><meta name="apple-mobile-web-app-capable" content="yes"></head><body>
+<h1>🛡️ SafeHer</h1><h3 id="t">Login</h3>
+<input id="n" placeholder="Full name" style="display:none">
+<input id="p" placeholder="Phone (10 digits)" inputmode="tel">
+<input id="w" type="password" placeholder="Password (6+ chars)">
+<button id="go">Login</button><div id="e"></div>
+<p><a id="sw">New here? Register</a></p>
+<script>
+let reg=false;const $=i=>document.getElementById(i);
+$('sw').onclick=()=>{reg=!reg;$('n').style.display=reg?'block':'none';$('t').textContent=reg?'Register':'Login';$('go').textContent=reg?'Create account':'Login';$('sw').textContent=reg?'Have an account? Login':'New here? Register'};
+$('go').onclick=async()=>{const r=await fetch(reg?'/api/register':'/api/login',{method:'POST',headers:{'Content-Type':'application/json'},
+ body:JSON.stringify({name:$('n').value,phone:$('p').value,password:$('w').value})});const d=await r.json();
+ d.ok?location='/':$('e').textContent=d.error};
+</script><script>if("serviceWorker"in navigator)navigator.serviceWorker.register("/sw.js")</script></body></html>

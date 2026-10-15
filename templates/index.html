@@ -1,0 +1,219 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>SafeHer</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root{--bg:#fff;--fg:#1a1a1a;--card:#f3f3f6;--bd:#d8d8de;--red:#d6291f;--grn:#12975a;--blu:#2b6cdf;--mut:#777}
+@media(prefers-color-scheme:dark){:root{--bg:#15161a;--fg:#eee;--card:#22242b;--bd:#383b45}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px system-ui,sans-serif;padding-bottom:70px}
+.tab{display:none;padding:12px}.tab.on{display:block}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--bd);padding-bottom:env(safe-area-inset-bottom);z-index:500}
+nav button{flex:1;border:0;background:none;color:var(--fg);padding:12px 0;font:inherit}nav button.on{color:var(--blu);font-weight:700}
+button.b{border:1px solid var(--bd);background:var(--card);color:var(--fg);border-radius:10px;padding:12px;font:inherit}button.b.on{background:var(--blu);color:#fff}
+#sos{width:100%;background:var(--red);color:#fff;border:0;font-size:26px;font-weight:700;padding:26px;border-radius:16px;margin:8px 0}
+.g{display:grid;grid-template-columns:1fr 1fr;gap:8px}.r{display:flex;gap:6px;margin:6px 0}.r>*{flex:1;min-width:0}
+input,select{padding:10px;font:inherit;border-radius:8px;border:1px solid var(--bd);background:var(--bg);color:var(--fg)}
+.c{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px;margin:6px 0}
+.s{color:var(--mut);font-size:13px}.ban{background:var(--red);color:#fff;padding:10px;border-radius:10px;margin:6px 0;font-weight:600}
+.nb{background:var(--grn);color:#fff;padding:10px;border-radius:10px;margin:6px 0}
+#map{height:60vh;border-radius:10px}a{color:var(--blu)}
+#call{position:fixed;inset:0;background:#111;color:#fff;display:none;flex-direction:column;align-items:center;justify-content:center;gap:18px;z-index:1000}
+#call .row{display:flex;gap:50px}#call button{width:70px;height:70px;border-radius:50%;border:0;font-size:26px;color:#fff}
+</style><link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#d6291f"><link rel="apple-touch-icon" href="/static/icon-192.png"><meta name="apple-mobile-web-app-capable" content="yes"></head><body>
+
+<div id="alerts" style="padding:0 12px"></div>
+
+<section class="tab on" id="t-home">
+ <div class="s" id="hi">…</div>
+ <button id="sos">🚨 SOS</button><div id="msg" class="s"></div>
+ <div class="g">
+  <button class="b" id="siren">🔊 Siren</button>
+  <button class="b" id="fake">📞 Fake call</button>
+  <button class="b" id="voice">🎙 Voice SOS: OFF</button>
+  <button class="b" id="camera">📷 Camera share: OFF</button>
+  <button class="b" id="share">📡 Share live location</button>
+ </div>
+ <div class="r"><input id="cname" value="Mom" placeholder="Fake caller name"><select id="cdelay"><option value="0">Now</option><option value="5" selected>5 sec</option><option value="30">30 sec</option><option value="60">1 min</option></select></div>
+ <div id="sharebox"></div>
+ <div id="cambox" class="c" style="display:none">
+  <video id="camvideo" autoplay muted playsinline style="width:100%;border-radius:10px"></video>
+  <div class="s" id="camstatus">Camera sharing is active. Keep this screen open for live snapshots.</div>
+ </div>
+ <button class="b" style="width:100%;margin-top:14px" id="out">Logout</button>
+</section>
+
+<section class="tab" id="t-map">
+ <div id="map" data-lat="{{lat}}" data-lon="{{lon}}"></div>
+ <div class="r"><button class="b" id="rep">⚠ Report unsafe spot</button><button class="b" id="clr">Clear route</button></div>
+ <div id="info" class="s">Tap map: start (A), then destination (B). 🟢 safest · ⚪ others · 🔴 hotspots · 🔵 friends</div>
+</section>
+
+<section class="tab" id="t-friends">
+ <h3>Friends (see each other live)</h3>
+ <div class="r"><input id="fp" placeholder="Friend's registered phone" inputmode="tel"><button class="b" id="fadd" style="flex:0">Add</button></div>
+ <div class="s">Location is shared only after your friend accepts.</div><div id="fl"></div>
+</section>
+
+<section class="tab" id="t-contacts">
+ <h3>Emergency contacts</h3>
+ <div class="r"><input id="cn" placeholder="Name"><input id="cp" placeholder="+91XXXXXXXXXX" inputmode="tel"></div>
+ <button class="b" id="cadd" style="width:100%">Add contact</button><div id="cl"></div>
+ <div class="s">SOS and live-share links are sent by SMS to these numbers.</div>
+</section>
+
+<div id="vc" style="position:fixed;inset:0;background:#b3150d;color:#fff;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:1100;text-align:center;padding:20px">
+ <div style="font-size:22px;font-weight:700">🚨 Help detected</div><div id="vtxt" style="opacity:.85"></div>
+ <div style="font-size:90px;font-weight:700" id="vn">10</div>
+ <div>Sharing your location and messaging emergency contacts…</div>
+ <button id="vcancel" style="padding:16px 26px;font-size:18px;border-radius:12px;border:0;background:#fff;color:#111;font-weight:700">I'm safe – cancel</button>
+ <button id="vnow" style="padding:12px 22px;font-size:15px;border-radius:12px;border:2px solid #fff;background:none;color:#fff">Send now</button></div>
+<div id="call"><div style="font-size:30px" id="cwho">Mom</div><div id="cst" class="s">incoming call…</div>
+ <div class="row"><button style="background:var(--red)" id="dec">✖</button><button style="background:var(--grn)" id="ans">✔</button></div></div>
+
+<nav><button data-t="home" class="on">🏠<br>Home</button><button data-t="map">🗺<br>Map</button><button data-t="friends">👥<br>Friends</button><button data-t="contacts">☎<br>Contacts</button></nav>
+
+<script>
+const $=i=>document.getElementById(i);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function api(u,m='GET',b){const r=await fetch(u,{method:m,headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});
+ if(r.status==401){location='/login';return{}}return r.json()}
+const CEN=[+$('map').dataset.lat,+$('map').dataset.lon];
+
+// tabs
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+ document.querySelectorAll('nav button,.tab').forEach(x=>x.classList.remove('on'));b.classList.add('on');$('t-'+b.dataset.t).classList.add('on');
+ if(b.dataset.t=='map')setTimeout(()=>map.invalidateSize(),50)});
+
+// map
+const map=L.map('map').setView(CEN,14);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);
+let mine=null,meMk=null,lastPost=0,hl=[],fl=[],rl=[],pts=[],reporting=false;
+navigator.geolocation.watchPosition(p=>{mine=[p.coords.latitude,p.coords.longitude];
+ meMk?meMk.setLatLng(mine):(meMk=L.circleMarker(mine,{radius:9,color:'#fff',weight:3,fillColor:'#12975a',fillOpacity:1}).addTo(map).bindTooltip('You'),map.setView(mine,15));
+ if(Date.now()-lastPost>5000){lastPost=Date.now();api('/api/location','POST',{lat:mine[0],lon:mine[1]})}},
+ ()=>$('hi').textContent='⚠ Turn on location access',{enableHighAccuracy:true,maximumAge:3000});
+const where=()=>mine||CEN;
+
+// hotspots + routing
+async function loadHot(){hl.forEach(l=>l.remove());hl=[];(await api('/api/hotspots')).forEach(h=>hl.push(L.circle([h.lat,h.lon],{radius:h.radius,color:'#d6291f',fillOpacity:.2}).addTo(map).bindTooltip(h.n+' incidents')))}
+$('rep').onclick=()=>{reporting=true;$('info').textContent='Tap the unsafe spot on the map.'};
+$('clr').onclick=()=>{pts=[];rl.forEach(l=>l.remove());rl=[];$('info').textContent='Tap start (A), then destination (B).'};
+map.on('click',async e=>{
+ if(reporting){reporting=false;await api('/api/report','POST',{lat:e.latlng.lat,lon:e.latlng.lng});loadHot();$('info').textContent='Reported. Hotspots updated.';return}
+ if(pts.length>=2)$('clr').onclick();pts.push(e.latlng);rl.push(L.marker(e.latlng).addTo(map));
+ if(pts.length<2){$('info').textContent='Now tap destination (B).';return}
+ $('info').textContent='Finding safest route…';
+ const d=await api('/api/route?'+new URLSearchParams({slat:pts[0].lat,slon:pts[0].lng,elat:pts[1].lat,elon:pts[1].lng}));
+ if(d.error){$('info').textContent='No route found';return}
+ d.routes.forEach((r,i)=>{const s=i==d.safest;rl.push(L.polyline(r.coords,{color:s?'#12975a':'#888',weight:s?6:3,dashArray:s?null:'6 6'}).addTo(map))});
+ const s=d.routes[d.safest],f=d.routes[0];
+ $('info').innerHTML=`<b>Safest:</b> ${(s.dist/1000).toFixed(2)} km · risk ${s.exposure.toFixed(1)}<br><b>Fastest:</b> ${(f.dist/1000).toFixed(2)} km · risk ${f.exposure.toFixed(1)}`});
+
+// SOS (3-second cancel window)
+let sosT=null;
+$('sos').onclick=()=>{if(sosT){clearInterval(sosT);sosT=null;$('sos').textContent='🚨 SOS';return}
+ let n=3;$('sos').textContent='Sending in '+n+'… tap to cancel';
+ sosT=setInterval(()=>{n--;if(n>0){$('sos').textContent='Sending in '+n+'… tap to cancel'}else{clearInterval(sosT);sosT=null;$('sos').textContent='🚨 SOS';sendSOS('button')}},1000)};
+async function sendSOS(src){const [la,lo]=where();siren(true);navigator.vibrate&&navigator.vibrate([300,100,300,100,300]);
+ const r=await api('/api/sos','POST',{lat:la,lon:lo,source:src});
+ $('msg').innerHTML='🚨 Alert sent to: '+(r.sent&&r.sent.length?r.sent.map(s=>esc(s.name)+' (SMS '+s.status+(s.call?', call '+s.call:'')+')').join(', '):'<b>no contacts saved – add some!</b>')+'<br>Live link: '+esc(r.link||'');
+ loadMe()}
+
+// siren
+let ac,osc,sOn=false;
+function siren(on){try{if(on&&!sOn){ac=ac||new(window.AudioContext||window.webkitAudioContext)();osc=ac.createOscillator();osc.type='sawtooth';osc.connect(ac.destination);osc.start();sOn=true;let t=0;osc._i=setInterval(()=>osc.frequency.value=t++%2?700:1100,400)}
+ else if(!on&&sOn){clearInterval(osc._i);osc.stop();sOn=false}}catch(e){}$('siren').className='b'+(sOn?' on':'')}
+$('siren').onclick=()=>siren(!sOn);
+
+// fake call
+let ring=null,ct=null;
+function beep(){try{ac=ac||new(window.AudioContext||window.webkitAudioContext)();const o=ac.createOscillator();o.frequency.value=880;o.connect(ac.destination);o.start();setTimeout(()=>o.stop(),300)}catch(e){}}
+$('fake').onclick=()=>{const d=+$('cdelay').value;$('fake').textContent='📞 Ringing in '+d+'s…';
+ setTimeout(()=>{$('cwho').textContent=$('cname').value||'Mom';$('cst').textContent='incoming call…';$('call').style.display='flex';
+  beep();ring=setInterval(()=>{beep();navigator.vibrate&&navigator.vibrate(400)},1500)},d*1000)};
+function endCall(){clearInterval(ring);clearInterval(ct);$('call').style.display='none';$('fake').textContent='📞 Fake call'}
+$('dec').onclick=endCall;
+$('ans').onclick=()=>{clearInterval(ring);let s=0;ct=setInterval(()=>{s++;$('cst').textContent=String(s/60|0).padStart(2,'0')+':'+String(s%60).padStart(2,'0')},1000);$('cst').textContent='00:00'};
+
+// voice SOS: require the word "help" three times within 10 seconds
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;let rec,von=false,helpCount=0,helpWindow=0;
+$('voice').onclick=()=>{if(!SR)return alert('Voice SOS needs Chrome/Android with microphone permission');
+ if(von){von=false;rec.stop();$('voice').textContent='🎙 Voice SOS: OFF';$('voice').classList.remove('on');return}
+ rec=new SR();rec.continuous=true;rec.interimResults=false;rec.lang='en-IN';
+ rec.onresult=e=>{
+   const t=e.results[e.results.length-1][0].transcript.toLowerCase();
+   const hits=(t.match(/\bhelp\b/g)||[]).length;
+   if(hits){const now=Date.now();if(now-helpWindow>10000)helpCount=0;helpWindow=now;helpCount+=hits;
+     if(helpCount>=3){helpCount=0;voiceAlert(t)}}
+ };
+ rec.onend=()=>{if(von)try{rec.start()}catch(e){}};
+ rec.start();von=true;$('voice').textContent='🎙 Voice SOS: ON';$('voice').classList.add('on')};
+
+// voice keyword -> 10-second reminder, then share location + SMS to contacts AND accepted friends
+let vT=null;
+function voiceAlert(heard){if(vT)return;let n=10;
+ $('vc').style.display='flex';$('vtxt').textContent='Heard 3× "help": "'+heard+'"';$('vn').textContent=n;beep();
+ vT=setInterval(()=>{n--;$('vn').textContent=Math.max(n,0);beep();navigator.vibrate&&navigator.vibrate(200);
+  if(n<=0){cancelVoice();sendSOS('voice-3x-help')}},1000)}
+function cancelVoice(){clearInterval(vT);vT=null;$('vc').style.display='none'}
+$('vcancel').onclick=cancelVoice;
+$('vnow').onclick=()=>{cancelVoice();sendSOS('voice-3x-help')};
+
+// camera sharing: explicit permission; sends periodic JPEG snapshots to a secure tokenized viewer
+let camStream=null,camTimer=null,camCanvas=null,camLink=null;
+$('camera').onclick=async()=>{
+ if(camStream){stopCamera();return}
+ try{
+   camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});
+   $('camvideo').srcObject=camStream;$('cambox').style.display='block';
+   const r=await api('/api/camera/start','POST');camLink=r.link;
+   $('camstatus').innerHTML='Sharing camera snapshots with your emergency contacts and accepted friends.<br>Viewer: <a target="_blank" href="'+esc(camLink)+'">'+esc(camLink)+'</a>';
+   $('camera').textContent='📷 Camera share: ON';$('camera').classList.add('on');
+   camCanvas=document.createElement('canvas');
+   camTimer=setInterval(captureFrame,3000);captureFrame();
+ }catch(e){alert('Camera permission was denied or unavailable.')}
+};
+async function captureFrame(){
+ if(!camStream||!$('camvideo').videoWidth)return;
+ camCanvas.width=$('camvideo').videoWidth;camCanvas.height=$('camvideo').videoHeight;
+ camCanvas.getContext('2d').drawImage($('camvideo'),0,0);
+ const image=camCanvas.toDataURL('image/jpeg',0.65);
+ await api('/api/camera/frame','POST',{image});
+}
+async function stopCamera(){
+ clearInterval(camTimer);camTimer=null;
+ if(camStream)camStream.getTracks().forEach(t=>t.stop());
+ camStream=null;$('camvideo').srcObject=null;$('cambox').style.display='none';
+ await api('/api/camera/stop','POST');$('camera').textContent='📷 Camera share: OFF';$('camera').classList.remove('on');
+}
+// live location share
+$('share').onclick=async()=>{const on=$('share').classList.contains('on');
+ if(on){await api('/api/track/stop','POST');}else{const r=await api('/api/track/start','POST');$('msg').textContent='Link sent to: '+(r.sent||[]).map(s=>s.name+' ('+s.status+')').join(', ')}
+ loadMe()};
+async function loadMe(){const m=await api('/api/me');$('hi').textContent='Hi, '+m.name;
+ $('share').className='b'+(m.track?' on':'');$('share').textContent=m.track?'📡 Sharing – tap to stop':'📡 Share live location';
+ $('sharebox').innerHTML=m.track?`<div class="c">Live link: <a href="${esc(m.track)}" target="_blank">${esc(m.track)}</a></div>`:''}
+
+// contacts
+async function loadC(){const c=await api('/api/contacts');
+ $('cl').innerHTML=c.map(x=>`<div class="c">${esc(x.name)} — ${esc(x.phone)} <a href="#" onclick="delC(${x.id});return false">remove</a></div>`).join('')||'<div class="s">No contacts yet.</div>'}
+async function delC(id){await api('/api/contacts?id='+id,'DELETE');loadC()}
+$('cadd').onclick=async()=>{await api('/api/contacts','POST',{name:$('cn').value,phone:$('cp').value});$('cn').value=$('cp').value='';loadC()};
+
+// friends: live map + nearby detector + friend SOS alerts
+async function loadF(){const f=await api('/api/friends');if(!Array.isArray(f))return;
+ fl.forEach(m=>m.remove());fl=[];let al='';
+ $('fl').innerHTML=f.map(x=>{
+  if(x.status=='pending')return x.incoming?`<div class="c">${esc(x.name)} wants to connect <button class="b" onclick="acc(${x.fid})">Accept</button> <a href="#" onclick="rmF(${x.fid});return false">Decline</a></div>`
+   :`<div class="c">${esc(x.name)} — waiting for approval <a href="#" onclick="rmF(${x.fid});return false">cancel</a></div>`;
+  const d=x.dist!=null?(x.dist<1000?x.dist+' m':(x.dist/1000).toFixed(1)+' km')+' away':'';
+  if(x.online){const m=L.circleMarker([x.lat,x.lon],{radius:10,color:'#fff',weight:2,fillColor:x.sos?'#d6291f':'#2b6cdf',fillOpacity:1}).addTo(map).bindTooltip(x.name+(d?' · '+d:''));fl.push(m)}
+  if(x.sos)al+=`<div class="ban">🚨 ${esc(x.name)} sent an SOS! ${d}</div>`;
+  else if(x.nearby)al+=`<div class="nb">📍 ${esc(x.name)} is nearby (${d})</div>`;
+  return `<div class="c">${x.online?'🟢':'⚪'} <b>${esc(x.name)}</b> ${x.sos?'🚨':''} <span class="s">${x.online?d:'offline'}</span> <a href="#" onclick="rmF(${x.fid});return false">remove</a></div>`}).join('')||'<div class="s">No friends yet.</div>';
+ $('alerts').innerHTML=al}
+async function acc(id){await api('/api/friends/accept','POST',{fid:id});loadF()}
+async function rmF(id){await api('/api/friends?fid='+id,'DELETE');loadF()}
+$('fadd').onclick=async()=>{const r=await api('/api/friends','POST',{phone:$('fp').value});if(r.error)alert(r.error);else $('fp').value='';loadF()};
+$('out').onclick=async()=>{await api('/api/logout','POST');location='/login'};
+
+loadMe();loadC();loadHot();loadF();setInterval(loadF,7000);
+</script><script>if("serviceWorker"in navigator)navigator.serviceWorker.register("/sw.js")</script></body></html>

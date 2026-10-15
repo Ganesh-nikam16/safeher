@@ -1,0 +1,15 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Live location</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>body{margin:0;font:16px system-ui,sans-serif}#m{height:calc(100vh - 56px)}#b{height:56px;display:flex;align-items:center;padding:0 14px;background:#d6291f;color:#fff;font-weight:700}</style><link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#d6291f"><link rel="apple-touch-icon" href="/static/icon-192.png"><meta name="apple-mobile-web-app-capable" content="yes"></head>
+<body><div id="b">Connecting…</div><div id="m" data-lat="{{lat}}" data-lon="{{lon}}"></div>
+<script>
+const el=document.getElementById('m'),map=L.map('m').setView([+el.dataset.lat,+el.dataset.lon],15);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);
+let mk,first=true;
+async function tick(){const d=await (await fetch('/api/track/{{tok}}')).json();const b=document.getElementById('b');
+ if(!d.active){b.textContent='Live sharing has ended';return}
+ if(d.lat==null){b.textContent='Waiting for location…';return}
+ b.textContent='📍 '+d.name+' · updated '+d.age+'s ago';
+ const p=[d.lat,d.lon];mk?mk.setLatLng(p):mk=L.marker(p).addTo(map);if(first){map.setView(p,16);first=false}else map.panTo(p)}
+tick();setInterval(tick,5000);
+</script><script>if("serviceWorker"in navigator)navigator.serviceWorker.register("/sw.js")</script></body></html>

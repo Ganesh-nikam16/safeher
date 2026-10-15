@@ -1,0 +1,12 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SafeHer Camera</title>
+<style>body{margin:0;font:16px system-ui,sans-serif;background:#111;color:#fff}#top{padding:14px;background:#d6291f;font-weight:700}#v{width:100%;max-height:calc(100vh - 55px);object-fit:contain}#s{text-align:center;padding:20px}</style></head>
+<body><div id="top">📷 Connecting to camera…</div><img id="v" style="display:none"><div id="s">Waiting for a camera frame…</div>
+<script>
+const tok="{{tok}}",v=document.getElementById('v'),s=document.getElementById('s'),topb=document.getElementById('top');
+async function tick(){try{const d=await (await fetch('/api/camera/'+tok)).json();
+ if(!d.active){topb.textContent='Camera sharing has ended';s.textContent='';v.style.display='none';return}
+ topb.textContent='📷 '+d.name+' · updated '+(d.age??'—')+'s ago';
+ if(d.image){v.src=d.image;v.style.display='block';s.textContent=''}else s.textContent='Waiting for a camera frame…';
+ }catch(e){s.textContent='Connection lost. Retrying…'}}
+tick();setInterval(tick,3000);
+</script></body></html>
