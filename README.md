@@ -1,46 +1,70 @@
 # SafeHer – Women Safety Software
 
 ## Features
-1. Registration + login (hashed passwords, sessions)
-2. Emergency contacts (add / remove)
-3. Fake call (custom caller name + delay, ringtone, call timer)
-4. Siren
-5. Safe route detector (DBSCAN crime hotspots + risk-scored routes)
-6. Live friends map (consent-based), nearby-friend detector (1 km), friend SOS alerts
-7. Live location tracking link sent by SMS to emergency contacts (opens without login)
-Extras: voice SOS (say "help", "save", "bachao": 10-second countdown with cancel, then location + SMS sent), 3-second SOS cancel window, report unsafe spot
+1. Registration and login with hashed passwords and sessions.
+2. Emergency contacts: add and remove contacts.
+3. Fake call with a custom caller name, delay, ringtone, and call timer.
+4. Emergency siren.
+5. Safe-route detector using DBSCAN crime hotspots and risk-scored routes.
+6. Consent-based live friends map, nearby-friend detection (1 km), and friend SOS alerts.
+7. Live location tracking link sent by SMS to emergency contacts; recipients can open the link without logging in.
+8. Voice SOS: recognized keywords trigger a countdown with a cancellation option.
+9. Report unsafe locations.
+10. Camera Share, where supported and explicitly permitted by the user.
 
-## Run
-    python -m venv venv && source venv/bin/activate     (Windows: venv\Scripts\activate)
-    pip install -r requirements.txt
-    python app.py          # http://localhost:5000
+## Run Locally
 
-Test the friends feature: register two accounts (normal + private window), add each other by phone, accept.
+Create and activate a virtual environment, then install dependencies.
 
-## Real SMS (Twilio)
-    export TWILIO_SID=... TWILIO_TOKEN=... TWILIO_FROM=+1...
-    export SECRET_KEY=any-long-random-string
-Without Twilio, SMS prints in the terminal (dev-mode). Contact numbers need country code (+91...).
+**Windows PowerShell:**
+```powershell
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python app.py
+```
 
-## Use on phones
-GPS + mic need HTTPS. Use `ngrok http 5000`, or deploy to Render/PythonAnywhere. Then open the link on phones.
-Browser tracking works while the page is open; a native app is needed for background tracking.
+Open `http://localhost:5000` in your browser.
 
-## To improve
-- Replace seed incidents in init() with a real crime CSV
-- OSRM demo server uses car roads; use OpenRouteService for walking
-- Add login rate-limiting, HTTPS-only cookies, and PostgreSQL for production
+To test the friends feature, register two accounts in separate browser sessions, add each other by phone number, and accept the friend requests.
 
-## Install as a phone app (PWA)
-Deploy over HTTPS (Render / PythonAnywhere / ngrok), open the link in Chrome on Android -> menu -> "Install app" / "Add to Home screen".
-iPhone: Safari -> Share -> Add to Home Screen. Opens full-screen with the SafeHer icon.
-Android APK: paste the deployed URL into pwabuilder.com and download the Android package.
+## Configure SMS and Calls with Twilio
 
-## Real calls + SMS
-SOS sends an SMS and a Twilio voice call to every emergency contact (see send_call in app.py).
+Set these environment variables in your deployment environment:
 
-## Enhanced emergency features
-- SOS SMS/call notifications are sent to **emergency contacts and accepted SafeHer friends** from the server, so recipients do not need SafeHer open.
-- Voice SOS now requires **"help" three times within 10 seconds** before the countdown starts.
-- Explicit **Camera Share** lets the user grant camera permission and sends periodic encrypted-in-transit JPEG snapshots to a tokenized viewer link; the link is sent to contacts and accepted friends.
-- Important browser limitation: a normal PWA/browser cannot reliably detect the physical power button twice, and cannot keep microphone/GPS/camera running after the browser is fully killed. A native Android companion is required for true device-level power-button handling/background SOS.
+- `TWILIO_SID`
+- `TWILIO_TOKEN`
+- `TWILIO_FROM`
+- `SECRET_KEY`
+
+Use valid Twilio credentials and a long, random secret key. Never commit credentials to GitHub. Without Twilio configuration, messaging and calling may be unavailable or use development-mode behavior, depending on the implementation.
+
+Emergency contact numbers should include the country code, such as `+91...`.
+
+## Use on Phones
+
+GPS, microphone, and camera features generally require HTTPS and explicit browser permissions. Deploy the application over HTTPS before testing these features on a phone.
+
+Browser-based tracking generally works only while the relevant page and browser capabilities remain active. A normal PWA cannot reliably detect physical power-button presses or guarantee background tracking after the browser is closed.
+
+## Install as a Phone App (PWA)
+
+After deploying over HTTPS:
+
+- **Android:** Open the site in Chrome and select the install option or "Add to Home screen."
+- **iPhone:** Open the site in Safari, select Share, then "Add to Home Screen."
+
+A packaged Android application can be explored using a PWA packaging tool, but device-level capabilities may require native Android development.
+
+## Production Improvements
+
+- Replace sample incident records with verified, appropriately sourced crime data.
+- Evaluate a routing service suitable for walking routes.
+- Add login rate limiting and secure cookie settings.
+- Use PostgreSQL or another persistent database for production.
+- Configure persistent storage and backups for user accounts and emergency data.
+- Test SMS, voice calls, location sharing, camera permissions, and authorization flows before real-world use.
+
+## Important Safety and Privacy Notes
+
+SOS notifications, calls, SMS, friend alerts, and camera sharing depend on the actual implementation and configuration. Test these features before relying on them in an emergency. Share location or camera access only with trusted recipients and with explicit consent.
